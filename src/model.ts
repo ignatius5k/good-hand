@@ -38,6 +38,12 @@ export function transfers(g: Game): Transfer[] {
   while(i<debts.length&&j<credits.length){const d=debts[i],c=credits[j],amount=Math.min(d.amount,c.amount);result.push({id:`${d.id}-${c.id}`,from:d.name,to:c.name,amount});d.amount-=amount;c.amount-=amount;if(!d.amount)i++;if(!c.amount)j++;}
   return result;
 }
+export function paymentMessage(g:Game):string|null {
+  if(g.endedAt===null||!canEnd(g))return null;
+  const all=transfers(g),unpaid=all.filter(t=>!g.paid.includes(t.id));
+  const lines=unpaid.length?unpaid.map(t=>`${t.from} pay ${t.to}: ${money(t.amount,g.currency)}`).join('\n'):all.length?'Everyone is settled up. No payments outstanding.':'Everyone broke even. No payments needed.';
+  return `${g.name} (${g.currency})\n\n${lines}`;
+}
 export const MULTIPLIERS=[1,2,3,4,6,8,12,16];
 // Preserve the last recorded stakes of older timed games without advancing them.
 export const blindsFor = (game:Game) => ({small:game.smallBlind*MULTIPLIERS[game.clock.level],big:game.bigBlind*MULTIPLIERS[game.clock.level]});

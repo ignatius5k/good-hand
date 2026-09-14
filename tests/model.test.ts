@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cents,canEnd,correctCashouts,transfers,freshGame,blindsFor,normalizeStore,saveTemplate,settingsFromTemplate,mergeBackup,loadStore,STORAGE_KEY,validateStore,net,type Game } from '../src/model.ts';
+import { cents,canEnd,correctCashouts,transfers,paymentMessage,freshGame,blindsFor,normalizeStore,saveTemplate,settingsFromTemplate,mergeBackup,loadStore,STORAGE_KEY,validateStore,net,type Game } from '../src/model.ts';
 function game():Game {const g=freshGame({name:'Test night',currency:'SGD',buyin:5000,smallBlind:50,bigBlind:100,settlementMode:'tab'});g.players=[{id:'a',name:'Alex',buyins:[5000,5000],cashout:4000},{id:'b',name:'Jamie',buyins:[5000],cashout:11000}];return g;}
 test('parses decimal money into exact integer cents',()=>{assert.equal(cents('0.29'),29);assert.equal(cents('123.4'),12340);assert.equal(cents('0'),0);for(const v of ['-1','1e3','NaN','0.001','1,000','1000001',''])assert.throws(()=>cents(v));});
 test('allows closing only complete balanced multi-player games',()=>{const g=game();assert.ok(canEnd(g));g.players[0].cashout=null;assert.ok(!canEnd(g));g.players[0].cashout=0;assert.ok(!canEnd(g));g.players=[];assert.ok(!canEnd(g));});
@@ -30,4 +30,16 @@ test('completed cash-outs can be corrected atomically and recalculate paid settl
   assert.equal(correctCashouts(g,[4000,11000]),g);
   for(const amounts of [[6000,8999],[6000],[-1,15001],[0.1,14999.9]])assert.throws(()=>correctCashouts(g,amounts));
   assert.throws(()=>correctCashouts({...g,endedAt:null},[6000,9000]));
+});
+
+test('payment messages list only exact outstanding payments and wait for final cash-outs',()=>{
+  const g=game();assert.equal(paymentMessage(g),null);g.endedAt=Date.now();
+  assert.equal(paymentMessage(g),'Test night (SGD)\n\nAlex pay Jamie: $60');
+  g.players[0].cashout=4001;g.players[1].cashout=10999;
+  assert.match(paymentMessage(g)!,/Alex pay Jamie: \$59\.99/);
+  g.paid=['a-b'];assert.match(paymentMessage(g)!,/No payments outstanding/);assert.ok(!paymentMessage(g)!.includes('Alex pay'));
+  g.paid=[];g.settlementMode='cash';assert.match(paymentMessage(g)!,/Game bank pay Alex: \$40\.01\nGame bank pay Jamie: \$109\.99/);
+  g.players[0].cashout=null;assert.equal(paymentMessage(g),null);
+  g.players[0].cashout=4000;assert.equal(paymentMessage(g),null);
+  g.players[0].cashout=10000;g.players[1].cashout=5000;g.settlementMode='tab';assert.match(paymentMessage(g)!,/Everyone broke even/);
 });

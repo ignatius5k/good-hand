@@ -25,7 +25,7 @@ For the browser flow test, serve the production build on http://127.0.0.1:5181 a
 2. Add players. Tap a player row to choose Rebuy or Cash out. Slide to adjust the amount, or tap the number to enter exact cents. Cash-out records the remaining chip value; it does not move money.
 3. Blinds remain fixed for the entire game. Edit them manually from the Blinds screen if needed. Older timed games keep their last recorded level and stop advancing.
 4. End now saves the game immediately, even with no cash-outs. Finish missing cash-outs later from History. Who pays whom previews payments only after all cash-outs are recorded and equal the buy-ins. No rake or fees are deducted.
-5. On a tab: settle net results between players. Paid up front: pay gross cash-outs from the game bank. Mark payments paid as they happen; this is bookkeeping, not payment processing.
+5. On a tab: settle net results between players. Paid up front: pay gross cash-outs from the game bank. Mark payments paid as they happen; this is bookkeeping, not payment processing. Finished games provide a copyable payment message (e.g. Marcus pay Julian: $20), including only unpaid payments. Expand Payment message to preview or manually copy it.
 6. Settings → Saved templates lets you create, rename, edit, and remove reusable setups. Templates contain settings only and never copy players, cash-outs or payments. JSON backups include templates; older backups remain supported. Templates with the same name but distinct IDs are renamed on import rather than dropped.
 7. History retains results and unpaid settlements. The Players view aggregates names case-insensitively and keeps different currencies separate.
 
