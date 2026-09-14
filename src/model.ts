@@ -24,6 +24,11 @@ export function cents(value: string): number {
 }
 export const money = (v: number, currency: Currency='SGD', signed=false) => new Intl.NumberFormat('en-SG',{style:'currency',currency,currencyDisplay:'narrowSymbol',minimumFractionDigits:v%100===0?0:2,maximumFractionDigits:2,signDisplay:signed?'exceptZero':'auto'}).format(v/100);
 export function canEnd(g: Game) { return g.players.length>=2 && g.players.every(p=>p.cashout!==null) && gameIn(g)===gameOut(g); }
+export function biggestWinners(g:Game):{players:Player[];amount:number}|null {
+  if(g.endedAt===null||!canEnd(g))return null;
+  const amount=Math.max(...g.players.map(p=>net(p)!));
+  return {players:g.players.filter(p=>net(p)===amount),amount};
+}
 export function correctCashouts(g:Game,amounts:number[]):Game {
   if(!g.endedAt||!canEnd(g))throw Error('Finish recording the game before correcting its results.');
   if(amounts.length!==g.players.length||!amounts.every(validAmount))throw Error('Enter a valid cash-out for every player.');

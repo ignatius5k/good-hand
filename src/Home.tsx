@@ -1,5 +1,6 @@
 import {ArrowRight,BookmarkSimple,CaretRight,CheckCircle,Clock} from '@phosphor-icons/react';
 import {canEnd,gameIn,money,transfers,needsSettling,type Game} from './model';
+import GameWinner from './GameWinner';
 
 const date=(at:number)=>new Date(at).toLocaleDateString('en-SG',{day:'numeric',month:'short'});
 function nextStep(game:Game){
@@ -32,11 +33,12 @@ export default function Home({games,activeGame,onOpen,onHistory,onUnsettled,onTe
       <h2>{featured.name}</h2>
       <p className="home-game-meta">{date(featured.createdAt)} · {featured.players.length} {featured.players.length===1?'player':'players'} · {featured.currency}</p>
       <div className="home-game-status"><span>{featured.players.length>0&&(step.label==='All settled'?<CheckCircle size={16}/>:<Clock size={16}/>)}<span>{step.label}</span></span><span>{money(gameIn(featured),featured.currency)} in</span></div>
+      <GameWinner game={featured}/>
       {<button className="home-card-action" onClick={()=>onOpen(featured)}>{step.action}<ArrowRight size={17}/></button>}
     </section>}
     {otherUnfinished>0&&<button className="home-followup text-button" onClick={onUnsettled}>{otherUnfinished} other {otherUnfinished===1?'game needs':'games need'} settling<CaretRight size={15}/></button>}
     <button className="home-template-link" onClick={onTemplates}><BookmarkSimple size={21}/><span>Saved templates</span><CaretRight size={17}/></button>
-    {recent.length>0&&<section className="home-recent" aria-label="Recent games"><div className="home-section-heading"><h2>Recently played</h2><button className="text-button" onClick={onHistory}>View all<ArrowRight size={15}/></button></div><div>{recent.map(g=><button className="home-history-row" key={g.id} onClick={()=>onOpen(g)}><span><strong>{g.name}</strong><small>{date(g.createdAt)} · {g.players.length} players · {g.currency}</small></span><span>{nextStep(g).label}<CaretRight size={15}/></span></button>)}</div></section>}
+    {recent.length>0&&<section className="home-recent" aria-label="Recent games"><div className="home-section-heading"><h2>Recently played</h2><button className="text-button" onClick={onHistory}>View all<ArrowRight size={15}/></button></div><div>{recent.map(g=><button className="home-history-row" key={g.id} onClick={()=>onOpen(g)}><span><strong>{g.name}</strong><small>{date(g.createdAt)} · {g.players.length} players · {g.currency}</small><GameWinner game={g}/></span><span>{nextStep(g).label}<CaretRight size={15}/></span></button>)}</div></section>}
     {!featured&&<div className="home-empty"><p>Your game nights will appear here.</p></div>}
   </div>;
 }

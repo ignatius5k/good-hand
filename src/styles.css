@@ -87,3 +87,15 @@
 .delete-game-summary h3{font-size:18px;font-weight:500}
 .delete-game-summary p{font-size:12px;color:#777;margin-top:7px;line-height:1.6}
 .page-heading h1:focus{outline:none}
+
+.game-winner{display:block;min-width:0;color:#333}
+.winner-label{display:block;color:#777;font-size:11px;line-height:1.5}
+.winner-result{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font-size:14px;line-height:1.5}
+.winner-names{min-width:0;overflow-wrap:anywhere;font-weight:500}
+.winner-amount{font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+.home-last-game>.game-winner{margin:0 0 18px;padding-top:14px;border-top:1px solid #eee}
+.pending-winner{font-size:12px;line-height:1.5;color:#777}
+.history-row .game-winner{padding-top:3px}
+.history-row .winner-result{font-size:12px;justify-content:flex-start}
+.home-history-row .game-winner{margin-top:10px}
+.home-history-row .winner-result{font-size:12px;justify-content:flex-start}
