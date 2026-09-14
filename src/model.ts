@@ -62,7 +62,6 @@ export function validateStore(input: unknown): input is Store {
     for(const p of g.players){if(!p||typeof p.id!=='string'||playerIds.has(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>32||names.has(p.name.toLowerCase())||!Array.isArray(p.buyins)||!p.buyins.length||!p.buyins.every(x=>validAmount(x)&&x>0)||!(p.cashout===null||validAmount(p.cashout)))return false;playerIds.add(p.id);names.add(p.name.toLowerCase());}
     const c=g.clock;
     if(!c||!Number.isInteger(c.level)||c.level<0||c.level>=MULTIPLIERS.length||!Number.isInteger(c.minutes)||c.minutes<1||c.minutes>180||typeof c.enabled!=='boolean'||typeof c.running!=='boolean'||!Number.isFinite(c.remaining)||c.remaining<0||c.remaining>c.minutes*60||!(c.endsAt===null||Number.isFinite(c.endsAt))||c.running&&c.endsAt===null)return false;
-    if(g.endedAt!==null&&!canEnd(g))return false;
   }
   return (s.activeId===null||s.games.some(g=>g.id===s.activeId)) && s.games.filter(g=>g.endedAt===null).length<=1;
 }
