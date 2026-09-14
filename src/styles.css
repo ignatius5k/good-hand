@@ -47,3 +47,28 @@
 .player-buyins>span{white-space:nowrap}
 
 @media(max-width:520px){.template-name-field input{font-size:16px}}
+
+/* Navigation mockup: central table action and a left-hand drawer. */
+.topbar .menu-toggle{margin-left:-10px;margin-right:9px;color:#222}
+.topbar .bottom-navigation{align-items:center;gap:16px;padding-top:10px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.bottom-navigation .nav-item{min-height:56px}
+.bottom-navigation .nav-item.active:before{display:none}
+.nav-start{display:flex;flex:0 0 116px;align-items:center;justify-content:center;gap:8px;min-height:52px;border:0;border-radius:18px;padding:12px 17px;background:#202020;color:white;font-size:15px;font-weight:500;box-shadow:0 3px 8px #0000000a;cursor:pointer}
+.nav-start:hover{background:#363636}
+.nav-start:active{transform:scale(.97)}
+.nav-start:focus-visible{outline:2px solid #222;outline-offset:4px}
+.side-menu-dialog{position:fixed;inset:0 auto 0 max(0px,calc(50vw - 260px));margin:0;width:min(320px,85vw);height:100dvh;max-width:none;max-height:100dvh;border:0;border-right:1px solid #ececec;border-radius:0 20px 20px 0;overscroll-behavior:contain;animation:menu-in .18s ease-out}
+.side-menu-dialog .dialog-inner{padding:calc(24px + env(safe-area-inset-top)) 20px 24px;min-height:100%;display:flex;flex-direction:column}
+.side-menu-dialog .dialog-inner:before{display:none}
+.side-menu-dialog .dialog-header{align-items:center;margin:0 0 24px;padding:0 4px}
+.side-menu-dialog .dialog-header h2{font-size:21px;letter-spacing:-.4px}
+.side-menu-dialog .dialog-header .icon-button{margin:-6px -7px -6px 0;color:#555}
+.side-menu-links{display:flex;flex-direction:column;gap:5px}
+.side-menu-links button{display:flex;align-items:center;gap:13px;width:100%;min-height:58px;text-align:left;padding:14px 12px;border:0;border-radius:9px;background:white;color:#555;font-size:15px}
+.side-menu-links button span{flex:1}
+.side-menu-links button>svg:last-child{color:#aaa}
+.side-menu-links button:hover,.side-menu-links button.selected{background:#f4f4f4;color:#111}
+.side-menu-links button:focus-visible{outline:2px solid #444;outline-offset:2px}
+@keyframes menu-in{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(max-width:360px){.topbar .bottom-navigation{gap:8px;padding-left:14px;padding-right:14px}.nav-start{flex-basis:104px}}
+@media(prefers-reduced-motion:reduce){.side-menu-dialog{animation:none}.nav-start:active{transform:none}}
