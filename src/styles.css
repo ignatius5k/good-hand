@@ -45,3 +45,5 @@
 
 .player-row>div>.player-buyins{display:flex;flex-wrap:wrap;gap:3px 12px;line-height:1.5}
 .player-buyins>span{white-space:nowrap}
+
+@media(max-width:520px){.template-name-field input{font-size:16px}}
