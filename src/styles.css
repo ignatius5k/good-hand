@@ -42,3 +42,6 @@
 
 .correction-total{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:14px;line-height:1.4;font-variant-numeric:tabular-nums;color:#777}
 .correction-total strong{font-weight:500;color:#333}
+
+.player-row>div>.player-buyins{display:flex;flex-wrap:wrap;gap:3px 12px;line-height:1.5}
+.player-buyins>span{white-space:nowrap}
