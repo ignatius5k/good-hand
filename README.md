@@ -24,7 +24,7 @@ For the browser flow test, serve the production build on http://127.0.0.1:5181 a
 1. Start a cash game from a saved template or a fresh setup. Review the game name, currency, standard buy-in, fixed blinds and payment method. Optionally save the setup as a template while starting the game.
 2. Add players. Tap a player row to choose Rebuy or Cash out. Slide to adjust the amount, or tap the number to enter exact cents. Cash-out records the remaining chip value; it does not move money.
 3. Blinds remain fixed for the entire game. Edit them manually from the Blinds screen if needed. Older timed games keep their last recorded level and stop advancing.
-4. End now saves the game immediately, even with no cash-outs. Finish missing cash-outs later from History. Who pays whom previews payments only after all cash-outs are recorded and equal the buy-ins. No rake or fees are deducted.
+4. End now saves the game immediately, even with no cash-outs, and returns to Home. Home offers a new game, a resume action for an open table, the latest game’s next step, saved templates and recent games. Finish missing cash-outs or view payments from the last-game card or History. The outstanding-games shortcut opens only games that still need cash-outs or payments; empty games are excluded. Who pays whom previews payments only after all cash-outs are recorded and equal the buy-ins. No rake or fees are deducted.
 5. On a tab: settle net results between players. Paid up front: pay gross cash-outs from the game bank. Mark payments paid as they happen; this is bookkeeping, not payment processing. Finished games provide a copyable payment message (e.g. Marcus pay Julian: $20), including only unpaid payments. Expand Payment message to preview or manually copy it.
 6. Settings → Saved templates lets you create, rename, edit, and remove reusable setups. Templates contain settings only and never copy players, cash-outs or payments. JSON backups include templates; older backups remain supported. Templates with the same name but distinct IDs are renamed on import rather than dropped.
 7. History retains results and unpaid settlements. The Players view aggregates names case-insensitively and keeps different currencies separate.
@@ -44,6 +44,9 @@ Researched using Mobbin MCP; adapted into an original phone-first interface:
 - [Splitwise activity](https://mobbin.com/screens/e0d16eba-18ae-4a6f-bd5a-0c7ac71d06c3): chronological group ledger.
 - [Splitwise group setup](https://mobbin.com/screens/a81c0b8a-a1e1-4b66-bd4b-3d3f1c1177ea): compact setup fields and grouped choices.
 - [Bevel template chooser](https://mobbin.com/screens/ceb67dfb-5132-4af1-bc5e-2e04baf4bf85): clear selectable options, strong selection state and one continue action.
+
+- [Splitwise home](https://mobbin.com/screens/8d4a1f26-0dd5-488c-a257-990a28c15159): clear group balances and direct settlement actions.
+- [Hevy start and resume](https://mobbin.com/screens/bf009e87-390d-49da-9899-a1e32a1e9d5f): a prominent start action, reusable routines and a resume path.
 
 Typography: DM Sans, bundled locally. Monochrome surfaces and controls. Icons: Phosphor. React, TypeScript, Vite and vite-plugin-pwa. Native HTML dialogs provide focus management, Escape dismissal and phone bottom sheets. An optional, feature-detected WebMCP `get_game_summary` tool exposes a read-only game summary; its contract is tested with an injected registry because the test browser lacks the proposed native API.
 

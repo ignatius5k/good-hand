@@ -44,6 +44,7 @@ export function paymentMessage(g:Game):string|null {
   const lines=unpaid.length?unpaid.map(t=>`${t.from} pay ${t.to}: ${money(t.amount,g.currency)}`).join('\n'):all.length?'Everyone is settled up. No payments outstanding.':'Everyone broke even. No payments needed.';
   return `${g.name} (${g.currency})\n\n${lines}`;
 }
+export const needsSettling=(g:Game):boolean=>g.endedAt!==null&&g.players.length>0&&(!canEnd(g)||transfers(g).some(t=>!g.paid.includes(t.id)));
 export const MULTIPLIERS=[1,2,3,4,6,8,12,16];
 // Preserve the last recorded stakes of older timed games without advancing them.
 export const blindsFor = (game:Game) => ({small:game.smallBlind*MULTIPLIERS[game.clock.level],big:game.bigBlind*MULTIPLIERS[game.clock.level]});
