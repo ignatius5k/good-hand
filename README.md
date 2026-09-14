@@ -1,5 +1,7 @@
 # Good Hand
 
+[Open the app](https://ignatius5k.github.io/good-hand/)
+
 A mobile-first, installable PWA for home poker cash games. One host records players, buy-ins, rebuys, final chip values, blinds and settlements. Data stays in the host's browser; there is no multi-device synchronization.
 
 ## Run
@@ -35,7 +37,21 @@ Amounts use integer cents. Zero chip cash-outs are supported. A capped undo hist
 
 The production build precaches the app, icons and self-hosted fonts. HTTPS (or localhost) is required for installation and service workers. On iOS, use Safari → Share → Add to Home Screen. On supported Android/desktop browsers, use the app's install button or browser menu. Installation support varies by browser. Once visited and cached, navigation and saved games work offline.
 
-Local data is specific to browser and origin and is not automatically transferred between preview and hosted URLs, different browsers, or devices. Export a backup before clearing site data. No data leaves the device except explicit result/backup downloads or copying text. Sites hosting is owner-private by default.
+Local data is specific to browser and origin and is not automatically transferred between preview and hosted URLs, different browsers, or devices. Export a backup before clearing site data. No data leaves the device except explicit result/backup downloads or copying text. The GitHub Pages app is public; each person’s game data remains in their own browser. To move saved games from another address, use Settings → Export backup there, then Settings → Restore backup here.
+
+## GitHub Pages
+
+Pushes to `main` run the tests, build the PWA, and deploy it using GitHub Actions. Pages must use **GitHub Actions** as its build source. The workflow sets `GOOD_HAND_BASE` to the repository path so assets, the manifest, installed-app launch URL, and offline navigation stay within `/good-hand/`.
+
+To check this deployment locally:
+
+```sh
+GOOD_HAND_BASE=/good-hand/ npm run build
+GOOD_HAND_BASE=/good-hand/ npm run preview -- --host 127.0.0.1 --port 5181
+GOOD_HAND_TEST_URL=http://127.0.0.1:5181/good-hand/ node tests/browser.mjs
+```
+
+Open `http://127.0.0.1:5181/good-hand/` on the development machine. The normal build defaults to `/` for hosting at an origin root.
 
 ## Design references
 
