@@ -13,9 +13,9 @@ function nextStep(game:Game){
   return unpaid.length?{label:`${unpaid.length} ${unpaid.length===1?'payment':'payments'} left`,action:'View payments'}:{label:'All settled',action:'View results'};
 }
 
-export default function Home({games,activeGame,templateCount,onOpen,onHistory,onUnsettled,onTemplates,onSample}:{
-  games:Game[];activeGame:Game|null;templateCount:number;
-  onOpen:(game:Game)=>void;onHistory:()=>void;onUnsettled:()=>void;onTemplates:()=>void;onSample:()=>void;
+export default function Home({games,activeGame,onOpen,onHistory,onUnsettled,onTemplates}:{
+  games:Game[];activeGame:Game|null;
+  onOpen:(game:Game)=>void;onHistory:()=>void;onUnsettled:()=>void;onTemplates:()=>void;
 }){
   const ended=games.filter(g=>g.endedAt!==null).sort((a,b)=>b.endedAt!-a.endedAt!);
   const featured=activeGame??ended[0];
@@ -35,8 +35,8 @@ export default function Home({games,activeGame,templateCount,onOpen,onHistory,on
       {<button className="home-card-action" onClick={()=>onOpen(featured)}>{step.action}<ArrowRight size={17}/></button>}
     </section>}
     {otherUnfinished>0&&<button className="home-followup text-button" onClick={onUnsettled}>{otherUnfinished} other {otherUnfinished===1?'game needs':'games need'} settling<CaretRight size={15}/></button>}
-    <button className="home-template-link" onClick={onTemplates}><BookmarkSimple size={21}/><span>Saved templates<small>{templateCount?`${templateCount} ${templateCount===1?'setup':'setups'} ready to use`:'Save your usual stakes'}</small></span><CaretRight size={17}/></button>
+    <button className="home-template-link" onClick={onTemplates}><BookmarkSimple size={21}/><span>Saved templates</span><CaretRight size={17}/></button>
     {recent.length>0&&<section className="home-recent" aria-label="Recent games"><div className="home-section-heading"><h2>Recently played</h2><button className="text-button" onClick={onHistory}>View all<ArrowRight size={15}/></button></div><div>{recent.map(g=><button className="home-history-row" key={g.id} onClick={()=>onOpen(g)}><span><strong>{g.name}</strong><small>{date(g.createdAt)} · {g.players.length} players · {g.currency}</small></span><span>{nextStep(g).label}<CaretRight size={15}/></span></button>)}</div></section>}
-    {!featured&&<div className="home-empty"><p>Your game nights will appear here.</p><button className="text-button" onClick={onSample}>Explore a sample<ArrowRight size={15}/></button></div>}
+    {!featured&&<div className="home-empty"><p>Your game nights will appear here.</p></div>}
   </div>;
 }
