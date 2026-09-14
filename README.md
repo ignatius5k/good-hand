@@ -37,6 +37,10 @@ Amounts use integer cents. Zero chip cash-outs are supported. A capped undo hist
 
 The production build precaches the app, icons and self-hosted fonts. HTTPS (or localhost) is required for installation and service workers. On iOS, use Safari → Share → Add to Home Screen. On supported Android/desktop browsers, use the app's install button or browser menu. Installation support varies by browser. Once visited and cached, navigation and saved games work offline.
 
+After each successful Pages deployment, the app checks for updates when opened, brought to the foreground, or reconnected, and every minute while visible and online. A compact **Update now** prompt appears once the new version is downloaded. It waits for a tap instead of reloading during an entry, and saved games survive the update. Checks continue while a prompt is waiting so a newer deployment can replace it. Each build stamps the precached HTML with the commit, workflow run, and attempt, including deployments with no app code changes. Closed or suspended apps check when reopened; unpublished commits do not trigger an app update.
+
+Run `node tests/pwa-updates.mjs` to verify real service-worker updates across four builds under `/good-hand/`. It covers detection without reloading, preserving an open entry, superseding a waiting release, saved-game persistence, offline recovery, and the mobile update prompt. It requires Google Chrome and creates only disposable local test data. The update checks use the [Vite PWA periodic update pattern](https://vite-pwa-org.netlify.app/guide/periodic-sw-updates).
+
 Local data is specific to browser and origin and is not automatically transferred between preview and hosted URLs, different browsers, or devices. Export a backup before clearing site data. No data leaves the device except explicit result/backup downloads or copying text. The GitHub Pages app is public; each person’s game data remains in their own browser. To move saved games from another address, use Settings → Export backup there, then Settings → Restore backup here.
 
 ## GitHub Pages

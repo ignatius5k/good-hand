@@ -4,6 +4,7 @@ import GameSetup from './GameSetup';
 import Home from './Home';
 import PaymentMessage from './PaymentMessage';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { watchForAppUpdates } from './appUpdates';
 import { type Game, type Player, type Store, type Currency, type GameSettings, uid, totalIn, gameIn, gameOut, net, cents, money, transfers, needsSettling, paymentMessage, canEnd, freshGame, demoGame, blindsFor, loadStore, validateStore, saveTemplate, mergeBackup, correctCashouts, STORAGE_KEY } from './model';
 
 type Modal = {type:'menu'|'new'|'add'|'settings'|'install'|'end'|'blinds'|'templates'|'correct'} | {type:'player';id:string;intent?:'rebuy'|'cashout'} | null;
@@ -56,7 +57,11 @@ function App(){
   const [offline,setOffline]=useState(!navigator.onLine);
   const [installEvent,setInstallEvent]=useState<InstallEvent|null>(null);
   const fileInput=useRef<HTMLInputElement>(null);
-  const {needRefresh:[needRefresh],offlineReady:[offlineReady],updateServiceWorker}=useRegisterSW();
+  const [swRegistration,setSwRegistration]=useState<ServiceWorkerRegistration>();
+  const {needRefresh:[needRefresh],offlineReady:[offlineReady],updateServiceWorker}=useRegisterSW({
+    onRegisteredSW(_url,registration){setSwRegistration(registration);},
+  });
+  useEffect(()=>swRegistration?watchForAppUpdates(swRegistration):undefined,[swRegistration]);
   const active=data.games.find(g=>g.id===data.activeId)??null;
   const game=demo??(selectedId?data.games.find(g=>g.id===selectedId)??active:active);
   const gameRef=useRef<Game|null>(game);gameRef.current=tab==='game'?game:null;
@@ -126,7 +131,7 @@ function App(){
   <main id="main-content">
     {storageError&&<div className="notice warning" role="alert"><Info size={20}/>{storageError}<button className="text-button" onClick={()=>open({type:'settings'})}>Settings</button></div>}
     {offline&&<div className="notice"><WifiSlash size={18}/> You’re offline. Keep playing; your game stays on this device.</div>}
-    {needRefresh&&<div className="notice">An app update is ready.<button className="text-button" onClick={()=>updateServiceWorker(true)}>Update now</button></div>}
+    {needRefresh&&<div className="notice app-update-notice" role="status">An app update is ready.<button className="text-button" onClick={()=>updateServiceWorker(true)}>Update now</button></div>}
     {demo&&<div className="demo-banner"><div><span className="demo-label">SAMPLE GAME</span><span>Take a seat. Try it out.</span></div><button onClick={()=>{setDemo(null);historyReplace();if(liveGame)openGame(liveGame);else open({type:'new'});}}>Start your own <ArrowRight size={16}/></button></div>}
     {tab==='home'&&<Home games={demo?[...data.games,demo]:data.games} activeGame={demo&&demo.endedAt===null?demo:liveGame} onOpen={openGame} onHistory={()=>navigate('history')} onUnsettled={()=>{navigate('history');setHistoryMode('unsettled');}} onTemplates={()=>open({type:'templates'})}/>}
     {tab==='game'&&game&&<>

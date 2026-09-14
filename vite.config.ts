@@ -3,10 +3,17 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const base = process.env.GOOD_HAND_BASE || '/';
+const deploymentVersion = `${process.env.GITHUB_SHA || 'local'}-${process.env.GITHUB_RUN_ID || Date.now()}-${process.env.GITHUB_RUN_ATTEMPT || '1'}`;
 
 export default defineConfig({
   base,
-  plugins: [react(), VitePWA({
+  plugins: [react(), {
+    name: 'good-hand-deployment-version',
+    // Changing the precached HTML makes every deployed commit detectable by the PWA.
+    transformIndexHtml() {
+      return [{ tag: 'meta', attrs: { name: 'app-version', content: deploymentVersion }, injectTo: 'head' }];
+    },
+  }, VitePWA({
     registerType: 'prompt',
     includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
     manifest: {
