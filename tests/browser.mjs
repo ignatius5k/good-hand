@@ -1,0 +1,48 @@
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({channel:'chrome',headless:true});
+const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(()=>{window.registeredTools=new Map();document.modelContext={registerTool(tool,{signal}){window.registeredTools.set(tool.name,tool);signal.addEventListener('abort',()=>window.registeredTools.delete(tool.name));}};});
+await page.goto('http://127.0.0.1:5181/');
+await page.evaluate(()=>navigator.serviceWorker.ready);
+await page.reload();
+assert.ok(await page.evaluate(()=>!!navigator.serviceWorker.controller));
+await page.getByRole('button',{name:'Start a game',exact:true}).click();
+await page.getByLabel('Game name',{exact:true}).fill('Saturday at home');
+await page.getByLabel('Increase blinds every 20 minutes').check();
+await page.getByRole('button',{name:'Open the table'}).click();
+await page.getByRole('heading',{name:'Saturday at home'}).waitFor();
+async function add(name,amount='50'){await page.getByRole('button',{name:'Add player',exact:true}).click();await page.getByLabel('Player name',{exact:true}).fill(name);await page.getByLabel('Buy-in (SGD)',{exact:true}).fill(amount);await page.getByRole('dialog').getByRole('button',{name:'Add player',exact:true}).click();}
+await add('Alex');await add('Jamie');
+await page.getByRole('button',{name:'Rebuy for Alex',exact:true}).click();
+await page.getByRole('button',{name:'Add rebuy',exact:true}).click();
+assert.match(await page.locator('.stats-bar').innerText(),/\$150/);
+await page.getByRole('button',{name:'Undo last',exact:true}).click();
+assert.match(await page.locator('.stats-bar').innerText(),/\$100/);
+await page.getByRole('button',{name:'Rebuy for Alex',exact:true}).click();await page.getByRole('button',{name:'Add rebuy',exact:true}).click();
+await page.getByRole('button',{name:'Add player',exact:true}).click();await page.getByLabel('Player name',{exact:true}).fill('alex');await page.getByRole('dialog').getByRole('button',{name:'Add player',exact:true}).click();assert.match(await page.getByRole('alert').innerText(),/already at the table/);await page.getByRole('button',{name:'Close dialog'}).click();
+await page.getByRole('tab',{name:'Blinds',exact:true}).click();
+await page.getByRole('button',{name:'Start timer',exact:true}).click();await page.getByRole('button',{name:'Pause timer',exact:true}).click();
+await page.getByRole('button',{name:'Next blind level',exact:true}).click();assert.match(await page.locator('.clock-meta').innerText(),/LEVEL 2/);
+await page.getByRole('tab',{name:'Players (2)',exact:true}).click();
+await page.reload();assert.match(await page.locator('.stats-bar').innerText(),/\$150/);
+await page.getByRole('button',{name:'End game',exact:true}).click();assert.ok(await page.getByRole('button',{name:'End game & settle up'}).isDisabled());await page.getByRole('button',{name:'Close dialog'}).click();
+async function cash(name,value){await page.getByRole('button',{name:`Cash out ${name}`,exact:true}).click();await page.getByLabel('Final chip value (SGD)',{exact:true}).fill(value);await page.getByRole('button',{name:'Cash out player',exact:true}).click();}
+await cash('Alex','40');await cash('Jamie','111');assert.match(await page.getByRole('alert').innerText(),/Only \$110/);await page.getByLabel('Final chip value (SGD)',{exact:true}).fill('110');await page.getByRole('button',{name:'Cash out player',exact:true}).click();
+await page.getByRole('button',{name:'End game',exact:true}).click();await page.getByRole('button',{name:'End game & settle up'}).click();
+assert.match(await page.locator('.transfer-row').innerText(),/Alex[\s\S]*Jamie[\s\S]*\$60/);
+await page.getByRole('button',{name:'Mark paid',exact:true}).click();
+assert.match(await page.locator('.settlement-count').innerText(),/1\/1 paid/);
+const summary=await page.evaluate(()=>window.registeredTools.get('get_game_summary').execute({}));assert.equal(summary.totalBuyinsCents,15000);assert.equal(summary.settlements[0].amount,6000);
+assert.equal(await page.evaluate(()=>{try{window.registeredTools.get('get_game_summary').execute({extra:true});return false;}catch{return true;}}),true);
+await page.getByRole('button',{name:'History',exact:true}).click();await page.getByRole('button',{name:/Saturday at home/}).click();
+assert.match(await page.locator('.settlement-count').innerText(),/1\/1 paid/);
+await context.setOffline(true);await page.reload();await page.getByRole('heading',{name:'Saturday at home'}).waitFor();assert.match(await page.locator('.settlement-count').innerText(),/1\/1 paid/);
+await page.getByRole('button',{name:'Players',exact:true}).click();assert.match(await page.locator('.players-list').innerText(),/Alex[\s\S]*-\$60/);
+await context.setOffline(false);
+for(const width of [320,390,430,768,1280]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`No horizontal overflow at ${width}`);}
+await page.setViewportSize({width:390,height:844});await page.goto('http://127.0.0.1:5181/?demo=1');await page.screenshot({path:'/tmp/good-hand-mobile-final.png',fullPage:true});
+await page.getByRole('tab',{name:'Blinds',exact:true}).click();await page.screenshot({path:'/tmp/good-hand-blinds-final.png'});
+assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:['mobile game creation','player addition and duplicate rejection','rebuy and undo','blind timer and next level','reload persistence','unbalanced game prevented','cash-out overdraw prevented','correct tab settlement','mark paid and history persistence','offline reload and navigation','player lifetime totals','no overflow at 320–1280px','WebMCP read and validation contract','no runtime errors'],manifest:await page.evaluate(async()=>await (await fetch('/manifest.webmanifest')).json())},null,2));
+await browser.close();
