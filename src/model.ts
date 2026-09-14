@@ -7,6 +7,9 @@ export type GameSettings = Pick<Game,'name'|'currency'|'buyin'|'smallBlind'|'big
 export interface GameTemplate extends Omit<GameSettings,'name'> { id:string; name:string; gameName:string }
 export interface Store { version: 1; games: Game[]; activeId: string | null; templates?:GameTemplate[] }
 export interface Transfer { id: string; from: string; to: string; amount: number }
+export function deleteGame(store:Store,id:string):Store {
+  return {...store,games:store.games.filter(game=>game.id!==id),activeId:store.activeId===id?null:store.activeId};
+}
 export const uid = () => crypto.randomUUID();
 export const totalIn = (p: Player) => p.buyins.reduce((a,b)=>a+b,0);
 export const gameIn = (g: Game) => g.players.reduce((s,p)=>s+totalIn(p),0);

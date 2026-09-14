@@ -21,6 +21,8 @@ npm test
 
 For the browser flow test, serve the production build on http://127.0.0.1:5181 and run `node tests/browser.mjs` (Google Chrome required). It covers the game lifecycle, validation, fixed blinds, payments, persistence, offline reload and mobile widths.
 
+Run `npx tsx tests/delete-games.mjs` against a production preview on port 5184 (or set `GOOD_HAND_TEST_URL`) to check game deletion, cancellation, storage failures, player results and offline persistence using disposable data.
+
 ## Home game flow
 
 1. Start a cash game from a saved template or a fresh setup. Review the game name, currency, standard buy-in, fixed blinds and payment method. Optionally save the setup as a template while starting the game.
@@ -29,7 +31,8 @@ For the browser flow test, serve the production build on http://127.0.0.1:5181 a
 4. End now saves the game immediately, even with no cash-outs, and returns to Home. Home offers a new game, a resume action for an open table, the latest game’s next step, saved templates and recent games. Finish missing cash-outs or view payments from the last-game card or History. The outstanding-games shortcut opens only games that still need cash-outs or payments; empty games are excluded. Who pays whom previews payments only after all cash-outs are recorded and equal the buy-ins. No rake or fees are deducted.
 5. On a tab: settle net results between players. Paid up front: pay gross cash-outs from the game bank. Mark payments paid as they happen; this is bookkeeping, not payment processing. Finished games provide a copyable payment message (e.g. Marcus pay Julian: $20), including only unpaid payments. Expand Payment message to preview or manually copy it.
 6. Settings → Saved templates lets you create, rename, edit, and remove reusable setups. Templates contain settings only and never copy players, cash-outs or payments. JSON backups include templates; older backups remain supported. Templates with the same name but distinct IDs are renamed on import rather than dropped.
-7. History retains results and unpaid settlements. The Players view aggregates names case-insensitively and keeps different currencies separate.
+7. Delete a game using its trash icon in History or **Delete game** at the bottom of the game. Confirm the named game to permanently remove its buy-ins, cash-outs, payments and contribution to player results. Other games and saved templates are retained; active and unsettled games can also be deleted.
+8. History retains results and unpaid settlements. The Players view aggregates names case-insensitively and keeps different currencies separate.
 
 Amounts use integer cents. Zero chip cash-outs are supported. A capped undo history covers player changes during the current session. Ended games remain editable until all cash-outs reconcile; completed games allow cash-out corrections that preserve the total and reset payment checkmarks when results change. Unfinished games are excluded from lifetime player results. Export JSON backups in Settings. Restoring merges games by ID without replacing existing games and rejects multiple open games. Existing IDs are intentionally kept, so restore does not overwrite a newer version of a game.
 

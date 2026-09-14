@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cents,canEnd,correctCashouts,transfers,paymentMessage,needsSettling,freshGame,blindsFor,normalizeStore,saveTemplate,settingsFromTemplate,mergeBackup,loadStore,STORAGE_KEY,validateStore,net,type Game } from '../src/model.ts';
+import { cents,canEnd,deleteGame,correctCashouts,transfers,paymentMessage,needsSettling,freshGame,blindsFor,normalizeStore,saveTemplate,settingsFromTemplate,mergeBackup,loadStore,STORAGE_KEY,validateStore,net,type Game } from '../src/model.ts';
 function game():Game {const g=freshGame({name:'Test night',currency:'SGD',buyin:5000,smallBlind:50,bigBlind:100,settlementMode:'tab'});g.players=[{id:'a',name:'Alex',buyins:[5000,5000],cashout:4000},{id:'b',name:'Jamie',buyins:[5000],cashout:11000}];return g;}
 test('parses decimal money into exact integer cents',()=>{assert.equal(cents('0.29'),29);assert.equal(cents('123.4'),12340);assert.equal(cents('0'),0);for(const v of ['-1','1e3','NaN','0.001','1,000','1000001',''])assert.throws(()=>cents(v));});
 test('allows closing only complete balanced multi-player games',()=>{const g=game();assert.ok(canEnd(g));g.players[0].cashout=null;assert.ok(!canEnd(g));g.players[0].cashout=0;assert.ok(!canEnd(g));g.players=[];assert.ok(!canEnd(g));});
@@ -48,4 +48,19 @@ test('settling queue includes ended pending cash-outs and unpaid games, but not 
   const g=game();assert.equal(needsSettling(g),false);g.endedAt=Date.now();assert.equal(needsSettling(g),true);
   g.paid=['a-b'];assert.equal(needsSettling(g),false);g.players[0].cashout=null;assert.equal(needsSettling(g),true);
   g.players=[];assert.equal(needsSettling(g),false);
+});
+
+test('deleting a historical game preserves the active table and templates',()=>{
+  const live=game(),ended={...game(),endedAt:Date.now()},templates=saveTemplate([],live,'Usual');
+  const store={version:1 as const,games:[live,ended],activeId:live.id,templates};
+  const next=deleteGame(store,ended.id);
+  assert.deepEqual(next.games,[live]);assert.equal(next.activeId,live.id);
+  assert.deepEqual(next.templates,templates);assert.ok(validateStore(next));assert.equal(store.games.length,2);
+});
+test('deleting the active or final game clears its reference without changing other games',()=>{
+  const live=game(),ended={...game(),endedAt:Date.now()};
+  const next=deleteGame({version:1,games:[live,ended],activeId:live.id},live.id);
+  assert.equal(next.activeId,null);assert.deepEqual(next.games,[ended]);assert.ok(validateStore(next));
+  const empty=deleteGame(next,ended.id);assert.deepEqual(empty.games,[]);assert.ok(validateStore(empty));
+  assert.deepEqual(deleteGame(empty,'already-deleted'),empty);
 });
