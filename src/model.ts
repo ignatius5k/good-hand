@@ -21,6 +21,13 @@ export function cents(value: string): number {
 }
 export const money = (v: number, currency: Currency='SGD', signed=false) => new Intl.NumberFormat('en-SG',{style:'currency',currency,currencyDisplay:'narrowSymbol',minimumFractionDigits:v%100===0?0:2,maximumFractionDigits:2,signDisplay:signed?'exceptZero':'auto'}).format(v/100);
 export function canEnd(g: Game) { return g.players.length>=2 && g.players.every(p=>p.cashout!==null) && gameIn(g)===gameOut(g); }
+export function correctCashouts(g:Game,amounts:number[]):Game {
+  if(!g.endedAt||!canEnd(g))throw Error('Finish recording the game before correcting its results.');
+  if(amounts.length!==g.players.length||!amounts.every(validAmount))throw Error('Enter a valid cash-out for every player.');
+  if(amounts.reduce((a,b)=>a+b,0)!==gameIn(g))throw Error(`Cash-outs must add up to ${money(gameIn(g),g.currency)}.`);
+  if(amounts.every((n,i)=>n===g.players[i].cashout))return g;
+  return {...g,players:g.players.map((p,i)=>({...p,cashout:amounts[i]})),paid:[],undo:[],events:[{id:uid(),at:Date.now(),text:'Final cash-outs corrected. Payment checkmarks reset.'},...g.events]};
+}
 export function transfers(g: Game): Transfer[] {
   if(!canEnd(g)) return [];
   if(g.settlementMode==='cash') return g.players.filter(p=>p.cashout!>0).map(p=>({id:`bank-${p.id}`,from:'Game bank',to:p.name,amount:p.cashout!}));

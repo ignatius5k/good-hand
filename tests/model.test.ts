@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cents,canEnd,transfers,freshGame,blindsFor,normalizeStore,saveTemplate,settingsFromTemplate,mergeBackup,loadStore,STORAGE_KEY,validateStore,net,type Game } from '../src/model.ts';
+import { cents,canEnd,correctCashouts,transfers,freshGame,blindsFor,normalizeStore,saveTemplate,settingsFromTemplate,mergeBackup,loadStore,STORAGE_KEY,validateStore,net,type Game } from '../src/model.ts';
 function game():Game {const g=freshGame({name:'Test night',currency:'SGD',buyin:5000,smallBlind:50,bigBlind:100,settlementMode:'tab'});g.players=[{id:'a',name:'Alex',buyins:[5000,5000],cashout:4000},{id:'b',name:'Jamie',buyins:[5000],cashout:11000}];return g;}
 test('parses decimal money into exact integer cents',()=>{assert.equal(cents('0.29'),29);assert.equal(cents('123.4'),12340);assert.equal(cents('0'),0);for(const v of ['-1','1e3','NaN','0.001','1,000','1000001',''])assert.throws(()=>cents(v));});
 test('allows closing only complete balanced multi-player games',()=>{const g=game();assert.ok(canEnd(g));g.players[0].cashout=null;assert.ok(!canEnd(g));g.players[0].cashout=0;assert.ok(!canEnd(g));g.players=[];assert.ok(!canEnd(g));});
@@ -21,3 +21,13 @@ test('template validation rejects duplicate names, bad stakes and unknown IDs',(
 test('backup merge retains templates and resolves distinct templates with the same name',()=>{const g=game();const first=saveTemplate([],g,'Friday');const second=saveTemplate([],{...g,buyin:2500},'Friday');const current={version:1 as const,games:[],activeId:null,templates:first};const merged=mergeBackup(current,{...current,templates:second});assert.equal(merged.templatesAdded,1);assert.equal(merged.data.templates?.length,2);assert.equal(merged.data.templates?.[1].name,'Friday (2)');assert.equal(merged.data.templates?.[0].buyin,5000);assert.equal(merged.data.templates?.[1].buyin,2500);const again=mergeBackup(merged.data,{...current,templates:second});assert.equal(again.templatesAdded,0);assert.equal(again.data.templates?.length,2);});
 test('legacy backups without templates keep the current templates',()=>{const g=game(),templates=saveTemplate([],g,'Friday');const result=mergeBackup({version:1,games:[],activeId:null,templates},{version:1,games:[g],activeId:g.id});assert.equal(result.data.templates?.length,1);assert.equal(result.gamesAdded,1);assert.equal(result.data.activeId,g.id);});
 test('saved templates survive the storage loader',()=>{const g=game(),templates=saveTemplate([],g,'Friday');const raw=JSON.stringify({version:1,games:[g],activeId:g.id,templates});const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage');Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>key===STORAGE_KEY?raw:null}});try{const loaded=loadStore();assert.equal(loaded.error,null);assert.deepEqual(loaded.data.templates,templates);}finally{if(original)Object.defineProperty(globalThis,'localStorage',original);else Reflect.deleteProperty(globalThis,'localStorage');}});
+
+test('completed cash-outs can be corrected atomically and recalculate paid settlements',()=>{
+  const g=game();g.endedAt=Date.now();g.paid=['a-b'];
+  const next=correctCashouts(g,[6000,9000]);
+  assert.ok(canEnd(next));assert.deepEqual(next.paid,[]);assert.equal(transfers(next)[0].amount,4000);
+  assert.equal(g.players[0].cashout,4000);assert.deepEqual(g.paid,['a-b']);
+  assert.equal(correctCashouts(g,[4000,11000]),g);
+  for(const amounts of [[6000,8999],[6000],[-1,15001],[0.1,14999.9]])assert.throws(()=>correctCashouts(g,amounts));
+  assert.throws(()=>correctCashouts({...g,endedAt:null},[6000,9000]));
+});
