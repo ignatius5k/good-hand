@@ -31,3 +31,14 @@
 @media(max-width:360px){.home-heading{padding-top:16px;padding-bottom:19px}.home-heading h1{font-size:31px}.home-primary{margin-bottom:19px}.home-last-game{padding:16px 16px 0}.home-last-game h2{font-size:21px}.home-game-status{margin-top:17px;margin-bottom:14px}}
 
 .history-filter-reset{min-height:44px;margin:-12px 0 13px;font-size:13px}
+
+.cashout-corrections .amount-picker{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #eee}
+.cashout-corrections .amount-picker:last-child{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.cashout-corrections .amount-title{text-align:left;font-size:14px;font-weight:500;color:#333}
+.cashout-corrections .amount-display{justify-content:flex-start;margin:6px 0 3px}
+.cashout-corrections .amount-display input{width:165px;text-align:left;font-size:32px;letter-spacing:-.8px}
+.cashout-corrections .slider-labels{font-size:12px}
+.cashout-corrections .slider-labels>span:nth-child(2){display:none}
+
+.correction-total{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:14px;line-height:1.4;font-variant-numeric:tabular-nums;color:#777}
+.correction-total strong{font-weight:500;color:#333}
