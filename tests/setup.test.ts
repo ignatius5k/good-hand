@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import GameSetup,{parseDraft} from '../src/GameSetup';
+import {saveTemplate} from '../src/model';
+const settings={name:'Friday night',currency:'SGD' as const,buyin:5000,smallBlind:50,bigBlind:100,settlementMode:'tab' as const};
+const handlers={onStart:()=>{},onSave:()=>{},onDelete:()=>{}};
+test('first-game onboarding presents fixed stakes and an optional saved template',()=>{const html=renderToStaticMarkup(createElement(GameSetup,{templates:[],...handlers}));for(const text of ['Set your table.','Standard buy-in','Small blind','Big blind','Save as a template','Start game'])assert.ok(html.includes(text));assert.ok(!html.includes('Increase blinds'));assert.ok(!html.includes('Minutes per level'));});
+test('returning player onboarding offers named saved setups and a fresh setup',()=>{const html=renderToStaticMarkup(createElement(GameSetup,{templates:saveTemplate([],settings,'Friday regulars'),...handlers}));for(const text of ['Friday regulars','Start fresh','Continue','Step 1 of 2'])assert.ok(html.includes(text));});
+test('template manager exposes create, edit and remove actions',()=>{const html=renderToStaticMarkup(createElement(GameSetup,{mode:'templates',templates:saveTemplate([],settings,'Friday regulars'),...handlers}));for(const text of ['New template','Edit Friday regulars template','Remove Friday regulars template'])assert.ok(html.includes(text));});
+test('onboarding parses exact money and rejects invalid fields before starting',()=>{const draft={name:' Friday night ',currency:'SGD' as const,buyin:'25.50',smallBlind:'0.25',bigBlind:'0.50',settlementMode:'tab' as const};assert.deepEqual(parseDraft(draft),{name:'Friday night',currency:'SGD',buyin:2550,smallBlind:25,bigBlind:50,settlementMode:'tab'});assert.throws(()=>parseDraft({...draft,buyin:'5.555'}));assert.throws(()=>parseDraft({...draft,bigBlind:'0.10'}));});

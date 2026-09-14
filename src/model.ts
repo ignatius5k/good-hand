@@ -3,7 +3,9 @@ export interface Player { id: string; name: string; buyins: number[]; cashout: n
 export interface GameEvent { id: string; text: string; at: number }
 export interface Clock { level: number; minutes: number; running: boolean; remaining: number; endsAt: number | null; enabled: boolean }
 export interface Game { id: string; name: string; createdAt: number; endedAt: number | null; currency: Currency; buyin: number; smallBlind: number; bigBlind: number; settlementMode: 'tab' | 'cash'; players: Player[]; clock: Clock; events: GameEvent[]; paid: string[]; undo: {players: Player[]; events: GameEvent[]}[] }
-export interface Store { version: 1; games: Game[]; activeId: string | null }
+export type GameSettings = Pick<Game,'name'|'currency'|'buyin'|'smallBlind'|'bigBlind'|'settlementMode'>;
+export interface GameTemplate extends Omit<GameSettings,'name'> { id:string; name:string; gameName:string }
+export interface Store { version: 1; games: Game[]; activeId: string | null; templates?:GameTemplate[] }
 export interface Transfer { id: string; from: string; to: string; amount: number }
 export const uid = () => crypto.randomUUID();
 export const totalIn = (p: Player) => p.buyins.reduce((a,b)=>a+b,0);
@@ -30,21 +32,16 @@ export function transfers(g: Game): Transfer[] {
   return result;
 }
 export const MULTIPLIERS=[1,2,3,4,6,8,12,16];
-export function clockAt(clock: Clock, now: number): Clock {
-  if(!clock.enabled || !clock.running || clock.endsAt===null) return clock;
-  let endsAt=clock.endsAt,level=clock.level;
-  while(now>=endsAt && level<MULTIPLIERS.length-1){level++;endsAt+=clock.minutes*60_000;}
-  if(now>=endsAt) return {...clock,level,remaining:0,running:false,endsAt:null};
-  return {...clock,level,endsAt,remaining:Math.ceil((endsAt-now)/1000)};
-}
-export function freshGame(input: Pick<Game,'name'|'currency'|'buyin'|'smallBlind'|'bigBlind'|'settlementMode'> & {minutes:number;timed:boolean}): Game {
-  return {...input,id:uid(),createdAt:Date.now(),endedAt:null,players:[],paid:[],undo:[],clock:{level:0,minutes:input.minutes,enabled:input.timed,running:false,remaining:input.minutes*60,endsAt:null},events:[{id:uid(),at:Date.now(),text:'The table is open. Good luck, everyone.'}]};
+// Preserve the last recorded stakes of older timed games without advancing them.
+export const blindsFor = (game:Game) => ({small:game.smallBlind*MULTIPLIERS[game.clock.level],big:game.bigBlind*MULTIPLIERS[game.clock.level]});
+export function freshGame(input: GameSettings): Game {
+  assertSettings(input);
+  return {...input,id:uid(),createdAt:Date.now(),endedAt:null,players:[],paid:[],undo:[],clock:{level:0,minutes:20,enabled:false,running:false,remaining:1200,endsAt:null},events:[{id:uid(),at:Date.now(),text:'The table is open. Good luck, everyone.'}]};
 }
 export function demoGame(): Game {
-  const g=freshGame({name:'Friday night poker',currency:'SGD',buyin:5000,smallBlind:50,bigBlind:100,settlementMode:'tab',minutes:20,timed:true});
+  const g=freshGame({name:'Friday night poker',currency:'SGD',buyin:5000,smallBlind:50,bigBlind:100,settlementMode:'tab'});
   g.createdAt=Date.now()-72*60_000;
   g.players=[['Alex',[5000,5000],null],['Jamie',[5000],null],['Marcus',[5000,5000],null],['Sarah',[5000],null],['Daniel',[5000],8500],['Rachel',[5000],3500]].map(([name,buyins,cashout])=>({id:uid(),name:name as string,buyins:buyins as number[],cashout:cashout as number|null}));
-  g.clock={...g.clock,level:1,remaining:14*60+32};
   g.events=[{id:uid(),text:'Rachel cashed out for $35.',at:Date.now()-3*60_000},{id:uid(),text:'Daniel cashed out for $85.',at:Date.now()-8*60_000},{id:uid(),text:'Marcus added a $50 rebuy.',at:Date.now()-12*60_000},{id:uid(),text:'Alex added a $50 rebuy.',at:Date.now()-25*60_000}];
   return g;
 }
@@ -53,6 +50,7 @@ export function validateStore(input: unknown): input is Store {
   if(!input||typeof input!=='object')return false;
   const s=input as Store;
   if(s.version!==1 || !Array.isArray(s.games) || s.games.length>500 || !(s.activeId===null||typeof s.activeId==='string'))return false;
+  if(s.templates!==undefined&&(!Array.isArray(s.templates)||s.templates.length>50||!s.templates.every(validTemplate)||new Set(s.templates.map(t=>t.id)).size!==s.templates.length||new Set(s.templates.map(t=>t.name.toLowerCase())).size!==s.templates.length))return false;
   const ids=new Set<string>();
   for(const g of s.games){
     if(!g||typeof g.id!=='string'||ids.has(g.id)||typeof g.name!=='string'||!g.name.trim()||g.name.length>80||!['SGD','USD','EUR','GBP','AUD'].includes(g.currency)||!validAmount(g.buyin)||g.buyin===0||!validAmount(g.smallBlind)||!validAmount(g.bigBlind)||g.smallBlind===0||g.bigBlind<g.smallBlind||!['tab','cash'].includes(g.settlementMode)||!Number.isFinite(g.createdAt)||!(g.endedAt===null||Number.isFinite(g.endedAt)))return false;
@@ -67,6 +65,49 @@ export function validateStore(input: unknown): input is Store {
 }
 export const STORAGE_KEY='good-hand-v1';
 export function loadStore(): {data:Store;error:string|null} {
-  try {const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return {data:{version:1,games:[],activeId:null},error:null};const data=JSON.parse(raw);if(!validateStore(data))throw Error();return {data:{...data,games:data.games.map(g=>({...g,undo:[]}))},error:null};}
-  catch{return {data:{version:1,games:[],activeId:null},error:'Your saved data could not be read. Export the stored data from Settings before starting a new game.'};}
+  try {const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return {data:{version:1,games:[],activeId:null,templates:[]},error:null};const data=JSON.parse(raw);if(!validateStore(data))throw Error();return {data:normalizeStore(data),error:null};}
+  catch{return {data:{version:1,games:[],activeId:null,templates:[]},error:'Your saved data could not be read. Export the stored data from Settings before starting a new game.'};}
+}
+
+export function assertSettings(s:GameSettings):void {
+  if(typeof s.name!=='string'||!s.name.trim()||s.name.length>80)throw Error('Give your game a name of up to 80 characters.');
+  if(!['SGD','USD','EUR','GBP','AUD'].includes(s.currency))throw Error('Choose a supported currency.');
+  if(!validAmount(s.buyin)||s.buyin===0)throw Error('Enter a buy-in greater than zero.');
+  if(!validAmount(s.smallBlind)||!validAmount(s.bigBlind)||s.smallBlind===0||s.bigBlind<s.smallBlind)throw Error('Use positive blinds. The big blind must be at least the small blind.');
+  if(!['tab','cash'].includes(s.settlementMode))throw Error('Choose how to settle payments.');
+}
+export function validTemplate(value:unknown): value is GameTemplate {
+  if(!value||typeof value!=='object')return false;
+  const t=value as GameTemplate;
+  if(typeof t.id!=='string'||!t.id||typeof t.name!=='string'||!t.name.trim()||t.name!==t.name.trim()||t.name.length>40)return false;
+  try{assertSettings({...t,name:t.gameName});return true;}catch{return false;}
+}
+export const settingsFromTemplate=(t:GameTemplate):GameSettings=>({name:t.gameName,currency:t.currency,buyin:t.buyin,smallBlind:t.smallBlind,bigBlind:t.bigBlind,settlementMode:t.settlementMode});
+export function saveTemplate(templates:GameTemplate[],settings:GameSettings,name:string,id?:string):GameTemplate[] {
+  assertSettings(settings);name=name.trim();
+  if(!name||name.length>40)throw Error('Give your template a name of up to 40 characters.');
+  if(id&&!templates.some(t=>t.id===id))throw Error('This template no longer exists. Save it as a new template.');
+  if(templates.some(t=>t.id!==id&&t.name.toLowerCase()===name.toLowerCase()))throw Error('A template with that name already exists. Choose another name.');
+  if(!id&&templates.length>=50)throw Error('You can save up to 50 templates. Remove one before adding another.');
+  const t:GameTemplate={id:id??uid(),name,gameName:settings.name.trim(),currency:settings.currency,buyin:settings.buyin,smallBlind:settings.smallBlind,bigBlind:settings.bigBlind,settlementMode:settings.settlementMode};
+  return id?templates.map(old=>old.id===id?t:old):[...templates,t];
+}
+export function normalizeStore(s:Store):Store {
+  return {...s,templates:s.templates??[],games:s.games.map(g=>({...g,undo:[],clock:{...g.clock,enabled:false,running:false,endsAt:null}}))};
+}
+export function mergeBackup(current:Store,incoming:Store):{data:Store;gamesAdded:number;templatesAdded:number} {
+  if(!validateStore(incoming))throw Error('This is not a valid Good Hand backup.');
+  const normalized=normalizeStore(incoming),existingIds=new Set(current.games.map(g=>g.id));
+  const added=normalized.games.filter(g=>!existingIds.has(g.id));
+  if(current.games.some(g=>!g.endedAt)&&added.some(g=>!g.endedAt))throw Error('Finish your current game before importing another open game.');
+  const templates=[...(current.templates??[])],ids=new Set(templates.map(t=>t.id));let templatesAdded=0;
+  for(const source of normalized.templates??[]){
+    if(ids.has(source.id))continue;
+    let name=source.name,n=2;
+    while(templates.some(t=>t.name.toLowerCase()===name.toLowerCase())){const suffix=` (${n++})`;name=source.name.slice(0,40-suffix.length)+suffix;}
+    templates.push({...source,name});ids.add(source.id);templatesAdded++;
+  }
+  const data={...current,games:[...current.games,...added],templates,activeId:current.activeId??incoming.activeId};
+  if(!validateStore(data))throw Error('This backup exceeds the saved game or template limit.');
+  return {data,gamesAdded:added.length,templatesAdded};
 }
