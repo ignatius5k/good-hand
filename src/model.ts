@@ -2,7 +2,7 @@ export type Currency = 'SGD' | 'USD' | 'EUR' | 'GBP' | 'AUD';
 export interface Player { id: string; name: string; buyins: number[]; cashout: number | null }
 export interface GameEvent { id: string; text: string; at: number }
 export interface Clock { level: number; minutes: number; running: boolean; remaining: number; endsAt: number | null; enabled: boolean }
-export interface Game { id: string; name: string; createdAt: number; endedAt: number | null; currency: Currency; buyin: number; smallBlind: number; bigBlind: number; settlementMode: 'tab' | 'cash'; players: Player[]; clock: Clock; events: GameEvent[]; paid: string[]; undo: {players: Player[]; events: GameEvent[]}[] }
+export interface Game { id: string; name: string; createdAt: number; endedAt: number | null; currency: Currency; buyin: number; smallBlind: number; bigBlind: number; settlementMode: 'tab' | 'cash'; players: Player[]; clock: Clock; events: GameEvent[]; paid: string[]; undo: {players: Player[]; events: GameEvent[]}[]; share?: {id: string; key: string; paused?: boolean} }
 export type GameSettings = Pick<Game,'name'|'currency'|'buyin'|'smallBlind'|'bigBlind'|'settlementMode'>;
 export interface GameTemplate extends Omit<GameSettings,'name'> { id:string; name:string; gameName:string }
 export interface Store { version: 1; games: Game[]; activeId: string | null; templates?:GameTemplate[] }
@@ -23,10 +23,11 @@ export function cents(value: string): number {
   return result;
 }
 export const money = (v: number, currency: Currency='SGD', signed=false) => new Intl.NumberFormat('en-SG',{style:'currency',currency,currencyDisplay:'narrowSymbol',minimumFractionDigits:v%100===0?0:2,maximumFractionDigits:2,signDisplay:signed?'exceptZero':'auto'}).format(v/100);
-export function canEnd(g: Game) { return g.players.length>=2 && g.players.every(p=>p.cashout!==null) && gameIn(g)===gameOut(g); }
+export function canEnd(g: Game) { return g.players.every(p=>p.cashout!==null) && gameIn(g)===gameOut(g); }
 export function biggestWinners(g:Game):{players:Player[];amount:number}|null {
-  if(g.endedAt===null||!canEnd(g))return null;
+  if(g.endedAt===null||!canEnd(g)||g.players.length===0)return null;
   const amount=Math.max(...g.players.map(p=>net(p)!));
+  if(!Number.isFinite(amount))return null;
   return {players:g.players.filter(p=>net(p)===amount),amount};
 }
 export function correctCashouts(g:Game,amounts:number[]):Game {
@@ -68,6 +69,8 @@ export function demoGame(): Game {
   return g;
 }
 const validAmount=(v:unknown): v is number=>Number.isSafeInteger(v)&&Number(v)>=0&&Number(v)<=100_000_000;
+const shareId=(v:unknown):v is string=>typeof v==='string'&&/^[A-Za-z0-9]{16,64}$/.test(v);
+const validShare=(v:unknown):v is {id:string;key:string;paused?:boolean}=>v===undefined||(!!v&&typeof v==='object'&&shareId((v as {id:unknown}).id)&&shareId((v as {key:unknown}).key)&&((v as {paused:unknown}).paused===undefined||typeof (v as {paused:unknown}).paused==='boolean'));
 export function validateStore(input: unknown): input is Store {
   if(!input||typeof input!=='object')return false;
   const s=input as Store;
@@ -77,7 +80,7 @@ export function validateStore(input: unknown): input is Store {
   for(const g of s.games){
     if(!g||typeof g.id!=='string'||ids.has(g.id)||typeof g.name!=='string'||!g.name.trim()||g.name.length>80||!['SGD','USD','EUR','GBP','AUD'].includes(g.currency)||!validAmount(g.buyin)||g.buyin===0||!validAmount(g.smallBlind)||!validAmount(g.bigBlind)||g.smallBlind===0||g.bigBlind<g.smallBlind||!['tab','cash'].includes(g.settlementMode)||!Number.isFinite(g.createdAt)||!(g.endedAt===null||Number.isFinite(g.endedAt)))return false;
     ids.add(g.id);
-    if(!Array.isArray(g.players)||g.players.length>30||!Array.isArray(g.events)||!g.events.every(e=>e&&typeof e.id==='string'&&typeof e.text==='string'&&Number.isFinite(e.at))||!Array.isArray(g.paid)||!g.paid.every(x=>typeof x==='string')||!Array.isArray(g.undo))return false;
+    if(!Array.isArray(g.players)||g.players.length>30||!Array.isArray(g.events)||!g.events.every(e=>e&&typeof e.id==='string'&&typeof e.text==='string'&&Number.isFinite(e.at))||!Array.isArray(g.paid)||!g.paid.every(x=>typeof x==='string')||!Array.isArray(g.undo)||!validShare(g.share))return false;
     const playerIds=new Set<string>();const names=new Set<string>();
     for(const p of g.players){if(!p||typeof p.id!=='string'||playerIds.has(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>32||names.has(p.name.toLowerCase())||!Array.isArray(p.buyins)||!p.buyins.length||!p.buyins.every(x=>validAmount(x)&&x>0)||!(p.cashout===null||validAmount(p.cashout)))return false;playerIds.add(p.id);names.add(p.name.toLowerCase());}
     const c=g.clock;

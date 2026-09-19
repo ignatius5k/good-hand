@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "sharedGames": {
+      "$id": {
+        ".read": true,
+        ".write": "newData.exists() && newData.hasChildren(['k', 'updated', 'game']) && (!data.exists() || newData.child('k').val() === data.child('k').val())"
+      }
+    }
+  }
+}

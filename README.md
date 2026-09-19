@@ -44,7 +44,20 @@ After each successful Pages deployment, the app checks for updates when opened, 
 
 Run `node tests/pwa-updates.mjs` to verify real service-worker updates across four builds under `/good-hand/`. It covers detection without reloading, preserving an open entry, superseding a waiting release, saved-game persistence, offline recovery, and the mobile update prompt. It requires Google Chrome and creates only disposable local test data. The update checks use the [Vite PWA periodic update pattern](https://vite-pwa-org.netlify.app/guide/periodic-sw-updates).
 
-Local data is specific to browser and origin and is not automatically transferred between preview and hosted URLs, different browsers, or devices. Export a backup before clearing site data. No data leaves the device except explicit result/backup downloads or copying text. The GitHub Pages app is public; each person’s game data remains in their own browser. To move saved games from another address, use Settings → Export backup there, then Settings → Restore backup here.
+Local data is specific to browser and origin and is not automatically transferred between preview and hosted URLs, different browsers, or devices. Export a backup before clearing site data. No data leaves the device except explicit result/backup downloads, copying text, or a live game you choose to share. The GitHub Pages app is public; each person’s game data remains in their own browser. To move saved games from another address, use Settings → Export backup there, then Settings → Restore backup here.
+
+## Live sharing
+
+The Share button on a game publishes it to a free Firebase Realtime Database, so friends can open a link and watch players, buy-ins, cash-outs and who pays whom update live as the host records them. Because the data lives in the database, the last update stays visible even while the host’s app is closed. Watching is read-only and needs no account.
+
+One-time setup (about five minutes, no billing):
+
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com). Add a web app (any nickname) and copy the config values shown.
+2. In the project: **Build → Realtime Database → Create database**. Pick a location and start in **locked mode**.
+3. Open the database’s **Rules** tab, paste the contents of `firebase.rules.json`, and publish. Anyone with a link can read that game; only the device that created the share can update it — its owner key `k` must match on every write — and records can’t be deleted through the API.
+4. Fill the five values into `src/firebaseConfig.ts` (or provide them as `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_DATABASE_URL`, `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_APP_ID`), then rebuild/redeploy the app. For GitHub Pages, add the same five values as repository secrets under **Settings → Secrets and variables → Actions**; `.github/workflows/pages.yml` passes them into the build.
+
+Sharing is off until configured; without config the Share dialog shows these steps instead. Each shared game lives at `sharedGames/<id>` with an unguessable 128-bit id. Anyone with the link can see player names and amounts, so treat the link as the guest list. **Pause sharing** freezes the record — friends keep the last update on the same link and it resumes live when you do. **End sharing** clears the link from the game; the record stays closed with its last update and sharing again creates a fresh link.
 
 ## GitHub Pages
 
