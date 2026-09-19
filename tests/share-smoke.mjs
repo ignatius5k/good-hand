@@ -2,7 +2,7 @@
 // BroadcastChannel-backed fake RTDB, so two pages in one context truly sync.
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
-const appUrl = 'http://127.0.0.1:5181/';
+const appUrl = process.env.GOOD_HAND_TEST_URL ?? 'http://127.0.0.1:5181/';
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 

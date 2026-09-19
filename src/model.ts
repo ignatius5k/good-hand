@@ -78,13 +78,13 @@ export function validateStore(input: unknown): input is Store {
   if(s.templates!==undefined&&(!Array.isArray(s.templates)||s.templates.length>50||!s.templates.every(validTemplate)||new Set(s.templates.map(t=>t.id)).size!==s.templates.length||new Set(s.templates.map(t=>t.name.toLowerCase())).size!==s.templates.length))return false;
   const ids=new Set<string>();
   for(const g of s.games){
-    if(!g||typeof g.id!=='string'||ids.has(g.id)||typeof g.name!=='string'||!g.name.trim()||g.name.length>80||!['SGD','USD','EUR','GBP','AUD'].includes(g.currency)||!validAmount(g.buyin)||g.buyin===0||!validAmount(g.smallBlind)||!validAmount(g.bigBlind)||g.smallBlind===0||g.bigBlind<g.smallBlind||!['tab','cash'].includes(g.settlementMode)||!Number.isFinite(g.createdAt)||!(g.endedAt===null||Number.isFinite(g.endedAt)))return false;
+    if(!g||typeof g.id!=='string'||ids.has(g.id)||typeof g.name!=='string'||!g.name.trim()||g.name.length>80||!['SGD','USD','EUR','GBP','AUD'].includes(g.currency)||!validAmount(g.buyin)||g.buyin===0||!validAmount(g.smallBlind)||!validAmount(g.bigBlind)||g.smallBlind===0||g.bigBlind<g.smallBlind||!['tab','cash'].includes(g.settlementMode)||!Number.isFinite(g.createdAt)||!(g.endedAt===null||g.endedAt===undefined||Number.isFinite(g.endedAt)))return false;
     ids.add(g.id);
-    if(!Array.isArray(g.players)||g.players.length>30||!Array.isArray(g.events)||!g.events.every(e=>e&&typeof e.id==='string'&&typeof e.text==='string'&&Number.isFinite(e.at))||!Array.isArray(g.paid)||!g.paid.every(x=>typeof x==='string')||!Array.isArray(g.undo)||!validShare(g.share))return false;
+    if(!Array.isArray(g.players)||g.players.length>30||!Array.isArray(g.events)||!g.events.every(e=>e&&typeof e.id==='string'&&typeof e.text==='string'&&Number.isFinite(e.at))||(g.paid!==undefined&&(!Array.isArray(g.paid)||!g.paid.every(x=>typeof x==='string')))||(g.undo!==undefined&&!Array.isArray(g.undo))||!validShare(g.share))return false;
     const playerIds=new Set<string>();const names=new Set<string>();
-    for(const p of g.players){if(!p||typeof p.id!=='string'||playerIds.has(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>32||names.has(p.name.toLowerCase())||!Array.isArray(p.buyins)||!p.buyins.length||!p.buyins.every(x=>validAmount(x)&&x>0)||!(p.cashout===null||validAmount(p.cashout)))return false;playerIds.add(p.id);names.add(p.name.toLowerCase());}
+    for(const p of g.players){if(!p||typeof p.id!=='string'||playerIds.has(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>32||names.has(p.name.toLowerCase())||!Array.isArray(p.buyins)||!p.buyins.length||!p.buyins.every(x=>validAmount(x)&&x>0)||!(p.cashout===null||p.cashout===undefined||validAmount(p.cashout)))return false;playerIds.add(p.id);names.add(p.name.toLowerCase());}
     const c=g.clock;
-    if(!c||!Number.isInteger(c.level)||c.level<0||c.level>=MULTIPLIERS.length||!Number.isInteger(c.minutes)||c.minutes<1||c.minutes>180||typeof c.enabled!=='boolean'||typeof c.running!=='boolean'||!Number.isFinite(c.remaining)||c.remaining<0||c.remaining>c.minutes*60||!(c.endsAt===null||Number.isFinite(c.endsAt))||c.running&&c.endsAt===null)return false;
+    if(!c||!Number.isInteger(c.level)||c.level<0||c.level>=MULTIPLIERS.length||!Number.isInteger(c.minutes)||c.minutes<1||c.minutes>180||(c.enabled!==undefined&&typeof c.enabled!=='boolean')||(c.running!==undefined&&typeof c.running!=='boolean')||(c.remaining!==undefined&&!Number.isFinite(c.remaining))||c.remaining<0||c.remaining>c.minutes*60||!(c.endsAt===null||c.endsAt===undefined||Number.isFinite(c.endsAt))||c.running&&c.endsAt===null)return false;
   }
   return (s.activeId===null||s.games.some(g=>g.id===s.activeId)) && s.games.filter(g=>g.endedAt===null).length<=1;
 }
@@ -118,7 +118,14 @@ export function saveTemplate(templates:GameTemplate[],settings:GameSettings,name
   return id?templates.map(old=>old.id===id?t:old):[...templates,t];
 }
 export function normalizeStore(s:Store):Store {
-  return {...s,templates:s.templates??[],games:s.games.map(g=>({...g,undo:[],clock:{...g.clock,enabled:false,running:false,endsAt:null}}))};
+  return {...s,templates:s.templates??[],games:s.games.map(g=>({
+    ...g,
+    endedAt:g.endedAt??null,
+    paid:g.paid??[],
+    undo:[],
+    players:g.players.map(p=>({...p,cashout:p.cashout??null})),
+    clock:{...g.clock,enabled:false,running:false,remaining:g.clock.remaining??(g.clock.minutes*60),endsAt:null}
+  }))};
 }
 export function mergeBackup(current:Store,incoming:Store):{data:Store;gamesAdded:number;templatesAdded:number} {
   if(!validateStore(incoming))throw Error('This is not a valid Good Hand backup.');

@@ -1,4 +1,4 @@
-import { validateStore, type Game } from './model';
+import { validateStore, normalizeStore, type Game } from './model';
 import { firebaseConfig, firebaseReady } from './firebaseConfig';
 
 export interface SharedSnapshot { k: string; updated: number; closed?: boolean; game: Omit<Game, 'share'> }
@@ -37,7 +37,8 @@ export function publishableGame(game: Game): Omit<Game, 'share'> {
 }
 export function validateSharedGame(input: unknown): Game | null {
   if (!input || typeof input !== 'object' || Array.isArray(input) || 'share' in input) return null;
-  return validateStore({ version: 1, games: [input as Game], activeId: null }) ? (input as Game) : null;
+  if (!validateStore({ version: 1, games: [input as Game], activeId: null })) return null;
+  return normalizeStore({ version: 1, games: [input as Game], activeId: null, templates: [] }).games[0];
 }
 
 // Games paused in this session reject late in-flight publishes that would

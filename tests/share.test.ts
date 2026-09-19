@@ -33,7 +33,7 @@ test('published games drop share credentials and undo history but keep the full 
   assert.equal(pub.players.length, 2);
   assert.equal(pub.events.length, g.events.length);
   assert.ok(g.share && g.undo.length === 1); // The original game is untouched.
-  assert.equal(validateSharedGame(pub), pub as unknown as Game);
+  assert.deepEqual(validateSharedGame(pub), pub as unknown as Game);
 });
 
 test('viewer-side validation accepts published snapshots and rejects junk or leaked credentials', () => {
