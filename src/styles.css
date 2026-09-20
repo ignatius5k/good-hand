@@ -110,3 +110,6 @@
 .game-heading:has(.heading-actions) h1{padding-right:150px}
 @media(max-width:360px){.game-heading:has(.heading-actions) h1{padding-right:130px}}
 @media(max-width:520px){.heading-actions .export-results{min-width:44px;min-height:44px;justify-content:center;padding:6px 8px}.heading-actions .export-results .export-label{display:none}}
+.watch-shell{padding:0 22px 30px}
+.cohost-link{margin:8px auto 4px;display:flex;min-height:44px;align-items:center;gap:5px;font-size:14px}.dialog .link-code{display:block;overflow-wrap:anywhere;word-break:break-all;white-space:normal;max-width:100%}
+@media(max-width:360px){.watch-shell{padding-left:15px;padding-right:15px}}
