@@ -9,7 +9,7 @@ import WatchGame from './WatchGame';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { watchForAppUpdates } from './appUpdates';
 import { type Game, type Player, type Store, type Currency, type GameSettings, uid, totalIn, gameIn, gameOut, net, cents, money, transfers, needsSettling, paymentMessage, canEnd, freshGame, demoGame, blindsFor, loadStore, validateStore, saveTemplate, mergeBackup, correctCashouts, deleteGame, STORAGE_KEY } from './model';
-import { closeSharedGame, newShareCredentials, publishGame, resumeSharedGame, watchIdFromHash } from './share';
+import { closeSharedGame, newShareCredentials, publishGame, publishableGame, resumeSharedGame, subscribeGame, watchUrlFromHash, type WatchUrl } from './share';
 import { firebaseReady } from './firebaseConfig';
 
 type Modal = {type:'menu'|'new'|'add'|'settings'|'install'|'end'|'blinds'|'templates'|'correct'|'share'} | {type:'player';id:string;intent?:'rebuy'|'cashout'} | {type:'delete';id:string} | null;
@@ -50,6 +50,9 @@ function BlindPanel({game,onEdit}:{game:Game;onEdit:()=>void}){
 function App(){
   const [loaded]=useState(loadStore);
   const [data,setData]=useState<Store>(loaded.data);
+  const dataRef=useRef(data);dataRef.current=data;
+  const subscribers=useRef<Map<string,()=>void>>(new Map());
+  const lastPublished=useRef<Map<string,{game:Omit<Game,'share'>;closed:boolean}>>(new Map());
   const [storageError,setStorageError]=useState(loaded.error);
   const [demo,setDemo]=useState<Game|null>(()=>new URLSearchParams(location.search).has('demo')?demoGame():null);
   const [tab,setTab]=useState(()=>new URLSearchParams(location.search).has('demo')||loaded.data.games.some(g=>g.id===loaded.data.activeId&&g.endedAt===null)?'game':'home');
@@ -61,7 +64,7 @@ function App(){
   const [toast,setToast]=useState('');
   const [offline,setOffline]=useState(!navigator.onLine);
   const [installEvent,setInstallEvent]=useState<InstallEvent|null>(null);
-  const [watchId,setWatchId]=useState<string|null>(()=>watchIdFromHash(location.hash));
+  const [watchUrl,setWatchUrl]=useState<WatchUrl>(()=>watchUrlFromHash(location.hash));
   const fileInput=useRef<HTMLInputElement>(null);
   const [swRegistration,setSwRegistration]=useState<ServiceWorkerRegistration>();
   const {needRefresh:[needRefresh],offlineReady:[offlineReady],updateServiceWorker}=useRegisterSW({
@@ -95,8 +98,30 @@ function App(){
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),4000);return()=>clearTimeout(t);},[toast]);
   useEffect(()=>{setError('');},[modal]);
   useEffect(()=>{const sync=(e:StorageEvent)=>{if(e.key!==STORAGE_KEY)return;const next=loadStore();if(!next.error){setData(next.data);setToast('Game updated from another tab.');}else setStorageError(next.error);};window.addEventListener('storage',sync);return()=>window.removeEventListener('storage',sync);},[]);
-  useEffect(()=>{const on=()=>setWatchId(watchIdFromHash(location.hash));window.addEventListener('hashchange',on);return()=>window.removeEventListener('hashchange',on);},[]);
-  useEffect(()=>{const shared=data.games.filter(g=>g.share&&!g.share.paused);if(!shared.length)return;const t=setTimeout(()=>{for(const g of shared){const {id,key}=g.share!;publishGame(id,key,g).catch(()=>{});}},350);return()=>clearTimeout(t);},[data]);
+  useEffect(()=>{const on=()=>setWatchUrl(watchUrlFromHash(location.hash));window.addEventListener('hashchange',on);return()=>window.removeEventListener('hashchange',on);},[]);
+  const shareSnapshot=(g:Game)=>({game:publishableGame(g),closed:!!g.share?.paused});
+  useEffect(()=>{const shared=data.games.filter(g=>g.share&&!g.share.paused);if(!shared.length)return;const t=setTimeout(()=>{for(const g of shared){const {id,key}=g.share!;const snap=shareSnapshot(g);const last=lastPublished.current.get(id);if(last&&JSON.stringify(last)===JSON.stringify(snap))continue;lastPublished.current.set(id,snap);publishGame(id,key,g,snap.closed).catch(()=>{});}},350);return()=>clearTimeout(t);},[data]);
+  useEffect(()=>{
+    const ids=data.games.filter(g=>g.share).map(g=>g.share!.id);
+    const added=ids.filter(id=>!subscribers.current.has(id));
+    const removed=[...subscribers.current.keys()].filter(id=>!ids.includes(id));
+    for(const id of removed){subscribers.current.get(id)!();subscribers.current.delete(id);lastPublished.current.delete(id);}
+    for(const id of added){
+      const unsub=subscribeGame(id,(state)=>{
+        if(state.status!=='live'||!state.game)return;
+        const local=dataRef.current.games.find(g=>g.share?.id===id);
+        if(!local)return;
+        const nextGame:Game={...state.game,id:local.id,share:{...local.share!,paused:state.closed},undo:[]};
+        const snap=shareSnapshot(nextGame);
+        const last=lastPublished.current.get(id);
+        if(last&&JSON.stringify(last)===JSON.stringify(snap))return;
+        lastPublished.current.set(id,snap);
+        setData(prev=>({...prev,games:prev.games.map(g=>g.id===local.id?nextGame:g)}));
+      });
+      subscribers.current.set(id,unsub);
+    }
+    return()=>{for(const unsub of subscribers.current.values())unsub();subscribers.current.clear();};
+  },[data.games.filter(g=>g.share).map(g=>g.share!.id).join(',')]);
   function commit(next:Store){
     if(loaded.error&&storageError)throw new Error('Export and restore your saved data in Settings first.');
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(next));setStorageError(null);}catch{setStorageError('Changes are in memory only. Device storage is full or unavailable. Export a backup before closing this app.');}
@@ -116,6 +141,23 @@ function App(){
     const templates=save?saveTemplate(data.templates??[],settings,save.name,save.id):data.templates??[];
     commit({...data,activeId:g.id,games:[...data.games,g],templates});
     setDemo(null);historyReplace();setSelectedId(null);setTab('game');setGameView('players');setModal(null);setToast(save?'Game started and template saved.':'Table open. Add your first player.');
+  }
+  function continueSharedGame(shared:Game,id:string,key:string,closed:boolean){
+    if(demo)setDemo(null);
+    const existing=dataRef.current.games.find(g=>g.share?.id===id);
+    const activeOpen=dataRef.current.games.find(g=>g.id===dataRef.current.activeId&&g.endedAt===null);
+    if(activeOpen&&(!existing||activeOpen.id!==existing.id)){setToast('End your current game before continuing this one.');return;}
+    let nextGame:Game={...shared,id:existing?existing.id:shared.id,share:{id,key,paused:closed||undefined},undo:[]};
+    if(dataRef.current.games.some(g=>g.id===nextGame.id&&g.share?.id!==id))nextGame={...nextGame,id:uid()};
+    lastPublished.current.set(id,shareSnapshot(nextGame));
+    if(existing){
+      commit({...dataRef.current,games:dataRef.current.games.map(g=>g.id===existing.id?nextGame:g),activeId:existing.id});
+    }else{
+      commit({...dataRef.current,games:[...dataRef.current.games,nextGame],activeId:nextGame.id});
+    }
+    window.history.replaceState(null,'',location.pathname);
+    setWatchUrl(null);setSelectedId(null);setTab('game');setGameView('players');setModal(null);
+    setToast(closed?'Game imported. Sharing is paused — resume to sync.':'Game continued on this device. Your changes will sync with the table.');
   }
   function confirmDeleteGame(){
     if(modal?.type!=='delete')return;
@@ -142,7 +184,7 @@ function App(){
   function backup(){const raw=loaded.error?localStorage.getItem(STORAGE_KEY):null;download(raw??JSON.stringify(data,null,2),`good-hand-backup-${new Date().toISOString().slice(0,10)}.json`);setToast('Backup downloaded.');}
   const tally=new Map<string,{name:string;currency:Currency;net:number;games:number}>();
   history.filter(canEnd).forEach(g=>g.players.forEach(p=>{const k=`${p.name.toLowerCase()}-${g.currency}`,old=tally.get(k);tally.set(k,{name:p.name,currency:g.currency,net:(old?.net??0)+net(p)!,games:(old?.games??0)+1});}));
-  if(watchId)return <WatchGame id={watchId} onExit={()=>{window.history.replaceState(null,'',location.pathname+location.search);setWatchId(null);}}/>;
+  if(watchUrl)return <WatchGame id={watchUrl.id} onExit={()=>{window.history.replaceState(null,'',location.pathname+location.search);setWatchUrl(null);}} onContinue={watchUrl.key?(shared:Game,share:{id:string;key:string;closed:boolean})=>continueSharedGame(shared,share.id,share.key,share.closed):undefined}/>;
   return <><div className="app-shell" data-game-view={tab==='game'&&editable?gameView:undefined}>
   <header className="topbar">
     <button className="icon-button menu-toggle" aria-label="Open menu" aria-expanded={modal?.type==='menu'} aria-controls="side-menu" onClick={()=>open({type:'menu'})}><List size={24}/></button>

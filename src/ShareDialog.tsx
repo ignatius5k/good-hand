@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 import { Copy, Pause, Play, ShareNetwork } from '@phosphor-icons/react';
-import { shareUrl } from './share';
+import { shareUrl, coHostUrl } from './share';
 import type { Game } from './model';
 
 export default function ShareDialog({ game, ready, onStart, onPause, onResume, onEnd, onToast }: {
@@ -14,6 +14,8 @@ export default function ShareDialog({ game, ready, onStart, onPause, onResume, o
   onToast: (message: string) => void;
 }) {
   const url = game.share ? shareUrl(game.share.id) : '';
+  const cohostUrl = game.share ? coHostUrl(game.share.id, game.share.key) : '';
+  const [manualCoCopy, setManualCoCopy] = useState(false);
   const field = useRef<HTMLInputElement>(null);
   const [manualCopy, setManualCopy] = useState(false);
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -32,6 +34,15 @@ export default function ShareDialog({ game, ready, onStart, onPause, onResume, o
     try {
       await navigator.share({ title: game.name, text: `Follow ${game.name} live on Good Hand`, url });
     } catch { /* Dismissed sheets and cancelled shares need no message. */ }
+  }
+  async function copyCoHost() {
+    setManualCoCopy(false);
+    try {
+      await navigator.clipboard.writeText(cohostUrl);
+      onToast('Co-host link copied. It can edit the game.');
+    } catch {
+      setManualCoCopy(true);
+    }
   }
 
   if (!ready) return <>
@@ -70,6 +81,9 @@ export default function ShareDialog({ game, ready, onStart, onPause, onResume, o
       {canNativeShare && <button className="button secondary" onClick={nativeShare}><ShareNetwork size={17} />Share via…</button>}
       <button className="button secondary" onClick={copy}><Copy size={17} />Copy link</button>
     </div>
+    <button className="text-button cohost-link" onClick={copyCoHost}><Copy size={14} />Copy co-host link</button>
+    <p className="field-hint">The co-host link lets someone else keep score too. Only share it with someone you trust.</p>
+    {manualCoCopy && <p className="copy-help" role="status">Copy not available. Co-host link: <code className="link-code">{cohostUrl}</code></p>}
     <button className="text-button share-stop" onClick={onPause}><Pause size={14} />Pause sharing</button>
   </>;
 }

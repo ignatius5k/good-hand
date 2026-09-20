@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, Info, Spade, Users, WifiSlash } from '@phosphor-icons/react';
+import { ArrowRight, Check, Info, PencilSimple, Spade, Users, WifiSlash } from '@phosphor-icons/react';
 import { canEnd, gameIn, gameOut, money, net, needsSettling, totalIn, transfers, type Game } from './model';
 import { subscribeGame, type WatchState } from './share';
 
@@ -52,14 +52,15 @@ function WatchMessage({ icon, title, children }: { icon: React.ReactNode; title:
   return <div className="watch-message">{icon}<h1>{title}</h1>{children}</div>;
 }
 
-export default function WatchGame({ id, onExit }: { id: string; onExit: () => void }) {
+export default function WatchGame({ id, onExit, onContinue }: { id: string; onExit: () => void; onContinue?: (game: Game, share: { id: string; key: string; closed: boolean }) => void }) {
   const [state, setState] = useState<WatchState>({ status: 'loading' });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => subscribeGame(id, setState), [id]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
 
-  const game = state.status === 'live' ? state.game : null;
-  const closed = state.status === 'live' && state.closed;
+  const live = state.status === 'live' ? state : null;
+  const game = live?.game ?? null;
+  const closed = live?.closed ?? false;
   const pending = !!game?.endedAt && !canEnd(game);
   const completed = !!game?.endedAt && canEnd(game);
   const settling = !!game && needsSettling(game);
@@ -87,9 +88,10 @@ export default function WatchGame({ id, onExit }: { id: string; onExit: () => vo
         <PlayerList game={game} />
         <Activity game={game} />
         <p className="watch-meta">{state.status === 'live' && `Updated ${ago(state.updated, now)} · `}Shared live from a friend’s Good Hand.</p>
+        {live && onContinue && live.key && !game?.endedAt && <button className="button primary full" onClick={() => onContinue(live.game, { id, key: live.key!, closed })}><PencilSimple size={18} />Continue this game on my device</button>}
         <button className="button secondary full watch-exit" onClick={onExit}>Open my Good Hand<ArrowRight size={16} /></button>
       </>}
     </main>
-    <footer className="app-footer"><span><Spade weight="fill" size={14} /> For the love of the home game.</span><span>Watch links show games read-only. Yours stay on your own device.</span></footer>
+    <footer className="app-footer"><span><Spade weight="fill" size={14} /> For the love of the home game.</span><span>{onContinue ? 'This link lets you edit and continue the game on your device.' : 'Watch links show games read-only. Yours stay on your own device.'}</span></footer>
   </div>;
 }

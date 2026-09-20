@@ -50,6 +50,8 @@ Local data is specific to browser and origin and is not automatically transferre
 
 The Share button on a game publishes it to a free Firebase Realtime Database, so friends can open a link and watch players, buy-ins, cash-outs and who pays whom update live as the host records them. Because the data lives in the database, the last update stays visible even while the host’s app is closed. Watching is read-only and needs no account.
 
+If you want a friend to keep score too, use **Copy co-host link** in the Share dialog. That link includes the secret write key, so it lets them tap **Continue this game on my device** and edit the same game from their phone. Only share that link with someone you trust — anyone with it can change the game. Co-hosts see each other's updates in real time.
+
 One-time setup (about five minutes, no billing):
 
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com). Add a web app (any nickname) and copy the config values shown.

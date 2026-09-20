@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { freshGame, normalizeStore, uid, validateStore, type Game } from '../src/model.ts';
-import { newShareCredentials, publishableGame, validateSharedGame, watchIdFromHash } from '../src/share.ts';
+import { newShareCredentials, publishableGame, validateSharedGame, watchIdFromHash, watchUrlFromHash, coHostUrl } from '../src/share.ts';
 
 function game(): Game {
   const g = freshGame({ name: 'Test night', currency: 'SGD', buyin: 5000, smallBlind: 50, bigBlind: 100, settlementMode: 'tab' });
@@ -14,6 +14,21 @@ test('watch links parse only well-formed ids', () => {
   const { id } = newShareCredentials();
   assert.equal(watchIdFromHash(`#watch=${id}`), id);
   for (const hash of ['', '#', '#watch=', '#watch=short', '#watch=bad chars!!', '#watch=a?b=1', '#other=' + id, '#watch=' + id + 'extra?']) assert.equal(watchIdFromHash(hash), null);
+});
+
+test('co-host links include the secret key and are parsed separately from watch links', () => {
+  const { id, key } = newShareCredentials();
+  assert.deepEqual(watchUrlFromHash(`#watch=${id}`), { id, key: undefined });
+  assert.deepEqual(watchUrlFromHash(`#watch=${id}&k=${key}`), { id, key });
+  assert.equal(watchUrlFromHash(`#watch=${id}&k=short`), null);
+  assert.equal(watchUrlFromHash(`#watch=${id}&k=${key}&extra=1`), null);
+  const saved = (globalThis as typeof globalThis & { location?: { origin: string; pathname: string } }).location;
+  (globalThis as typeof globalThis & { location?: { origin: string; pathname: string } }).location = { origin: 'https://example.com', pathname: '/good-hand/' };
+  try {
+    assert.match(coHostUrl(id, key), new RegExp(`#watch=${id}&k=${key}$`));
+  } finally {
+    (globalThis as typeof globalThis & { location?: { origin: string; pathname: string } }).location = saved;
+  }
 });
 
 test('share credentials are unique, unguessable and key-safe', () => {

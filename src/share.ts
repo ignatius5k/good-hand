@@ -7,7 +7,7 @@ export type WatchState =
   | { status: 'unconfigured' }
   | { status: 'missing' }
   | { status: 'error' }
-  | { status: 'live'; game: Game; updated: number; closed: boolean };
+  | { status: 'live'; game: Game; updated: number; closed: boolean; key?: string };
 
 // The Firebase SDK is only fetched when someone shares or watches a game.
 type Db = import('firebase/database').Database;
@@ -25,8 +25,17 @@ export function newShareCredentials(): { id: string; key: string } {
 export function shareUrl(id: string): string {
   return `${location.origin}${location.pathname}#watch=${id}`;
 }
+export function coHostUrl(id: string, key: string): string {
+  return `${location.origin}${location.pathname}#watch=${id}&k=${key}`;
+}
+export type WatchUrl = { id: string; key?: string } | null;
+export function watchUrlFromHash(hash: string): WatchUrl {
+  const match = /^#watch=([A-Za-z0-9]{16,64})(?:&k=([A-Za-z0-9]{16,64}))?$/.exec(hash);
+  if (!match) return null;
+  return { id: match[1], key: match[2] };
+}
 export function watchIdFromHash(hash: string): string | null {
-  return /^#watch=([A-Za-z0-9]{16,64})$/.exec(hash)?.[1] ?? null;
+  return watchUrlFromHash(hash)?.id ?? null;
 }
 
 // The published payload drops host-only data: the share credentials (they
@@ -74,7 +83,7 @@ export function subscribeGame(id: string, onUpdate: (state: WatchState) => void)
         const value = snap.val() as SharedSnapshot | null;
         const game = value ? validateSharedGame(value.game) : null;
         if (!value || !game) onUpdate({ status: 'missing' });
-        else onUpdate({ status: 'live', game, updated: typeof value.updated === 'number' ? value.updated : Date.now(), closed: value.closed === true });
+        else onUpdate({ status: 'live', game, updated: typeof value.updated === 'number' ? value.updated : Date.now(), closed: value.closed === true, key: value.k });
       }, () => onUpdate({ status: 'error' }));
     }))
     .catch(() => onUpdate({ status: 'error' }));
